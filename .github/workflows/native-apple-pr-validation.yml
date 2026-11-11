@@ -1,0 +1,64 @@
+name: Native Apple PR validation
+
+on:
+  push:
+    branches:
+      - ci/native-apple-validation-20261111
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apple-native:
+    name: PR #${{ matrix.pr }} / ${{ matrix.change }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pr: 4
+            change: tvOS brand assets
+            source_sha: cc948c71491a78183a08759dc07d4faef07ecad4
+          - pr: 7
+            change: logical iOS icon renditions
+            source_sha: a2a62669809758995a7e0ebc9bf7a51f19a7d6c7
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+
+    steps:
+      - name: Check out the immutable PR source
+        uses: actions/checkout@v6
+        with:
+          repository: bvolpato/AssetKit
+          ref: ${{ matrix.source_sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Verify source and Apple toolchain
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ matrix.source_sha }}
+        run: |
+          set -euo pipefail
+          actual_source_sha=$(git -C source rev-parse HEAD)
+          test "$actual_source_sha" = "$EXPECTED_SOURCE_SHA"
+          printf 'Source commit: %s\n' "$actual_source_sha"
+          xcodebuild -version
+          swift --version
+          printf 'iOS SDK: '
+          xcrun --sdk iphoneos --show-sdk-version
+          printf 'tvOS SDK: '
+          xcrun --sdk appletvos --show-sdk-version
+
+      - name: Build and test on Apple Silicon (debug)
+        working-directory: source
+        run: swift test --jobs 4
+
+      - name: Build and test on Apple Silicon (release)
+        working-directory: source
+        run: swift test --configuration release --jobs 4
