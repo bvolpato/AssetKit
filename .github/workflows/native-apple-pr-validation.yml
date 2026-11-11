@@ -27,9 +27,6 @@ jobs:
           - pr: 7
             change: logical iOS icon renditions
             source_sha: a2a62669809758995a7e0ebc9bf7a51f19a7d6c7
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
-
     steps:
       - name: Check out the immutable PR source
         uses: actions/checkout@v6
@@ -48,7 +45,11 @@ jobs:
           actual_source_sha=$(git -C source rev-parse HEAD)
           test "$actual_source_sha" = "$EXPECTED_SOURCE_SHA"
           printf 'Source commit: %s\n' "$actual_source_sha"
-          xcodebuild -version
+          xcode_version=$(xcodebuild -version)
+          printf '%s\n' "$xcode_version"
+          grep -Fx 'Xcode 26.6' <<< "$xcode_version"
+          printf 'Developer directory: '
+          xcode-select -p
           swift --version
           printf 'iOS SDK: '
           xcrun --sdk iphoneos --show-sdk-version
